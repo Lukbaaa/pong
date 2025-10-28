@@ -13,6 +13,10 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 use std::collections::HashSet;
+use std::f64::consts::PI;
+
+const WIDTH: f64 = 800f64;
+const HEIGHT: f64 = 800f64;
 
 pub struct App {
     gl: GlGraphics,
@@ -75,7 +79,7 @@ impl App {
 
     fn update(&mut self, _args: &UpdateArgs) {
         let player_speed = 5.0;
-        let ball_speed = 1.0;
+        let ball_speed = 2.0;
 
         for key in &self.pressed_keys {
             match key {
@@ -107,14 +111,20 @@ impl App {
             self.player2.position.y -= player_speed;
         }
 
-        // TODO Ball movement
-
         if self.is_started {
             self.ball.position.x += self.ball.angle.cos() * ball_speed;
             self.ball.position.y -= self.ball.angle.sin() * ball_speed;
         }
 
+        if self.ball.position.y < 0.0 || self.ball.position.y - self.ball.size > HEIGHT {
+            self.ball.angle = -self.ball.angle;
+        }
+
         // TODO Game logic
+        // - Collision with walls
+        // - Collision with player
+        // - Goal
+        // - Winning
     }
 
     fn key_press(&mut self, key: Key) {
@@ -128,9 +138,6 @@ impl App {
 
 fn main() {
     let opengl = OpenGL::V3_2;
-
-    const WIDTH: f64 = 800f64;
-    const HEIGHT: f64 = 800f64;
 
     let mut window: Window = WindowSettings::new("Pong", [WIDTH, HEIGHT])
         .graphics_api(opengl)
@@ -162,7 +169,7 @@ fn main() {
             x: player1.position.x + player1.size * player1.ratio + 20.0,
             y: player1.position.y + player1.size / 2.0,
         },
-        angle: 45.0,
+        angle: 0.0,
     };
 
     let mut app = App {
