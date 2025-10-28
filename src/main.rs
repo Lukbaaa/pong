@@ -4,6 +4,10 @@ extern crate opengl_graphics;
 extern crate piston;
 
 use glutin_window::GlutinWindow as Window;
+use graphics::circle_arc;
+use graphics::ellipse;
+use graphics::ellipse::circle;
+use graphics::rectangle;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::Button;
 use piston::Key;
@@ -12,10 +16,13 @@ use piston::ReleaseEvent;
 use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
+use std::collections::HashSet;
 
 pub struct App {
     gl: GlGraphics,
-    rotation: f64,
+    player1: Player,
+    player2: Player,
+    ball: Ball,
 }
 
 pub struct Position {
@@ -38,32 +45,36 @@ impl App {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
-        let square = rectangle::square(0.0, 0.0, 50.0);
-        let rotation = self.rotation;
-        let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
+        let ball = ellipse::circle(0.0, 0.0, self.ball.size);
 
         self.gl.draw(args.viewport(), |c, gl| {
-            // Clear the screen.
-            clear(GREEN, gl);
+            clear(WHITE, gl);
 
-            let transform = c
+            let ball_transform = c
                 .transform
-                .trans(x, y)
-                .rot_rad(rotation)
-                .trans(-25.0, -25.0);
+                .trans(self.ball.position.x, self.ball.position.y);
 
-            // Draw a box rotating around the middle of the screen.
-            rectangle(RED, square, transform, gl);
+            let player1_transform = c
+                .transform
+                .trans(self.player1.position.x, self.player1.position.y);
+
+            let player2_transform = c
+                .transform
+                .trans(self.player2.position.x, self.player2.position.y);
+
+            let from = [0.0, 0.0];
+            let to = [self.player1.size * self.player1.ratio, self.player1.size];
+
+            ellipse(BLACK, ball, ball_transform, gl);
+            rectangle_from_to(BLACK, from, to, player1_transform, gl);
+            rectangle_from_to(BLACK, from, to, player2_transform, gl);
         });
     }
 
-    fn update(&mut self, args: &UpdateArgs) {
-        // Rotate 2 radians per second.
-        self.rotation += 2.0 * args.dt;
-    }
+    fn update(&mut self, args: &UpdateArgs) {}
 }
 
 fn main() {
@@ -75,14 +86,33 @@ fn main() {
         .build()
         .unwrap();
 
+    let player1 = Player {
+        size: 50.0,
+        ratio: 0.2,
+        position: Position { x: 100.0, y: 100.0 },
+    };
+
+    let player2 = Player {
+        size: 50.0,
+        ratio: 0.2,
+        position: Position { x: 100.0, y: 100.0 },
+    };
+
+    let ball = Ball {
+        size: 20.0,
+        position: Position { x: 500.0, y: 400.0 },
+    };
+
     let mut app = App {
         gl: GlGraphics::new(opengl),
-        rotation: 0.0,
+        player1,
+        player2,
+        ball,
     };
 
     let mut events = Events::new(EventSettings::new());
 
-    let mut currently_pressed = [false, false, false, false]; // W S UP DOWN
+    let mut pressed_keys = HashSet::new();
 
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
@@ -93,55 +123,22 @@ fn main() {
             app.update(&args);
         }
 
-        if currently_pressed[0] {
-            println!("w is pressed");
-        }
-        if currently_pressed[1] {
-            println!("s is pressed");
-        }
-        if currently_pressed[2] {
-            println!("up is pressed");
-        }
-        if currently_pressed[3] {
-            println!("down is pressed");
+        for key in &pressed_keys {
+            match key {
+                Key::W => println!("W is pressed"),
+                Key::S => println!("S is pressed"),
+                Key::Up => println!("Up is pressed"),
+                Key::Down => println!("Down is pressed"),
+                _ => {}
+            }
         }
 
         if let Some(Button::Keyboard(key)) = e.press_args() {
-            if key == Key::W {
-                currently_pressed[0] = true;
-                println!("W was pressed");
-            }
-            if key == Key::S {
-                currently_pressed[1] = true;
-                println!("S was pressed");
-            }
-            if key == Key::Up {
-                currently_pressed[2] = true;
-                println!("Up was pressed");
-            }
-            if key == Key::Down {
-                currently_pressed[3] = true;
-                println!("Down was pressed");
-            }
+            pressed_keys.insert(key);
         }
 
         if let Some(Button::Keyboard(key)) = e.release_args() {
-            if key == Key::W {
-                currently_pressed[0] = false;
-                println!("W was released");
-            }
-            if key == Key::S {
-                currently_pressed[1] = false;
-                println!("S was released");
-            }
-            if key == Key::Up {
-                currently_pressed[2] = false;
-                println!("Up was released");
-            }
-            if key == Key::Down {
-                currently_pressed[3] = false;
-                println!("Down was released");
-            }
+            pressed_keys.remove(&key);
         }
     }
 }
