@@ -20,6 +20,7 @@ pub struct App {
     player1: Player,
     player2: Player,
     ball: Ball,
+    is_started: bool,
 }
 
 pub struct Position {
@@ -73,32 +74,45 @@ impl App {
     }
 
     fn update(&mut self, _args: &UpdateArgs) {
-        let speed = 5.0;
+        let player_speed = 5.0;
+        let ball_speed = 1.0;
 
         for key in &self.pressed_keys {
             match key {
-                Key::W => self.player1.position.y -= speed,
-                Key::S => self.player1.position.y += speed,
-                Key::Up => self.player2.position.y -= speed,
-                Key::Down => self.player2.position.y += speed,
+                Key::W => self.player1.position.y -= player_speed,
+                Key::S => self.player1.position.y += player_speed,
+                Key::Up => self.player2.position.y -= player_speed,
+                Key::Down => self.player2.position.y += player_speed,
                 _ => {}
+            }
+            if !self.is_started {
+                match key {
+                    Key::W => self.is_started = true,
+                    Key::S => self.is_started = true,
+                    _ => {}
+                }
             }
         }
 
         if self.player1.position.y < 0.0 {
-            self.player1.position.y += speed;
+            self.player1.position.y += player_speed;
         }
         if self.player1.position.y > 800.0 - self.player1.size {
-            self.player1.position.y -= speed;
+            self.player1.position.y -= player_speed;
         }
         if self.player2.position.y < 0.0 {
-            self.player2.position.y += speed;
+            self.player2.position.y += player_speed;
         }
         if self.player2.position.y > 800.0 - self.player1.size {
-            self.player2.position.y -= speed;
+            self.player2.position.y -= player_speed;
         }
 
         // TODO Ball movement
+
+        if self.is_started {
+            self.ball.position.x += self.ball.angle.cos() * ball_speed;
+            self.ball.position.y -= self.ball.angle.sin() * ball_speed;
+        }
 
         // TODO Game logic
     }
@@ -148,7 +162,7 @@ fn main() {
             x: player1.position.x + player1.size * player1.ratio + 20.0,
             y: player1.position.y + player1.size / 2.0,
         },
-        angle: 0.0,
+        angle: 45.0,
     };
 
     let mut app = App {
@@ -157,6 +171,7 @@ fn main() {
         player1,
         player2,
         ball,
+        is_started: false,
     };
 
     let mut events = Events::new(EventSettings::new());
