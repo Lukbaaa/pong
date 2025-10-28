@@ -4,10 +4,6 @@ extern crate opengl_graphics;
 extern crate piston;
 
 use glutin_window::GlutinWindow as Window;
-use graphics::circle_arc;
-use graphics::ellipse;
-use graphics::ellipse::circle;
-use graphics::rectangle;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::Button;
 use piston::Key;
@@ -20,6 +16,7 @@ use std::collections::HashSet;
 
 pub struct App {
     gl: GlGraphics,
+    pressed_keys: HashSet<Key>,
     player1: Player,
     player2: Player,
     ball: Ball,
@@ -74,7 +71,27 @@ impl App {
         });
     }
 
-    fn update(&mut self, args: &UpdateArgs) {}
+    fn update(&mut self, _args: &UpdateArgs) {
+        let speed = 5.0;
+
+        for key in &self.pressed_keys {
+            match key {
+                Key::W => self.player1.position.y -= speed,
+                Key::S => self.player1.position.y += speed,
+                Key::Up => self.player2.position.y -= speed,
+                Key::Down => self.player2.position.y += speed,
+                _ => {}
+            }
+        }
+    }
+
+    fn key_press(&mut self, key: Key) {
+        self.pressed_keys.insert(key);
+    }
+
+    fn key_release(&mut self, key: Key) {
+        self.pressed_keys.remove(&key);
+    }
 }
 
 fn main() {
@@ -87,15 +104,15 @@ fn main() {
         .unwrap();
 
     let player1 = Player {
-        size: 50.0,
+        size: 80.0,
         ratio: 0.2,
-        position: Position { x: 100.0, y: 100.0 },
+        position: Position { x: 50.0, y: 400.0 },
     };
 
     let player2 = Player {
-        size: 50.0,
+        size: 80.0,
         ratio: 0.2,
-        position: Position { x: 100.0, y: 100.0 },
+        position: Position { x: 750.0, y: 400.0 },
     };
 
     let ball = Ball {
@@ -105,14 +122,13 @@ fn main() {
 
     let mut app = App {
         gl: GlGraphics::new(opengl),
+        pressed_keys: HashSet::new(),
         player1,
         player2,
         ball,
     };
 
     let mut events = Events::new(EventSettings::new());
-
-    let mut pressed_keys = HashSet::new();
 
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
@@ -123,22 +139,12 @@ fn main() {
             app.update(&args);
         }
 
-        for key in &pressed_keys {
-            match key {
-                Key::W => println!("W is pressed"),
-                Key::S => println!("S is pressed"),
-                Key::Up => println!("Up is pressed"),
-                Key::Down => println!("Down is pressed"),
-                _ => {}
-            }
-        }
-
         if let Some(Button::Keyboard(key)) = e.press_args() {
-            pressed_keys.insert(key);
+            app.key_press(key);
         }
 
         if let Some(Button::Keyboard(key)) = e.release_args() {
-            pressed_keys.remove(&key);
+            app.key_release(key);
         }
     }
 }
