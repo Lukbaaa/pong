@@ -75,7 +75,6 @@ impl App {
     fn update(&mut self, _args: &UpdateArgs) {
         let speed = 5.0;
 
-        // TODO dont move out of screen
         for key in &self.pressed_keys {
             match key {
                 Key::W => self.player1.position.y -= speed,
@@ -86,7 +85,22 @@ impl App {
             }
         }
 
+        if self.player1.position.y < 0.0 {
+            self.player1.position.y += speed;
+        }
+        if self.player1.position.y > 800.0 - self.player1.size {
+            self.player1.position.y -= speed;
+        }
+        if self.player2.position.y < 0.0 {
+            self.player2.position.y += speed;
+        }
+        if self.player2.position.y > 800.0 - self.player1.size {
+            self.player2.position.y -= speed;
+        }
+
         // TODO Ball movement
+
+        // TODO Game logic
     }
 
     fn key_press(&mut self, key: Key) {
