@@ -116,7 +116,9 @@ impl App {
             self.ball.position.y -= self.ball.angle.sin() * ball_speed;
         }
 
-        if self.ball.position.y < 0.0 || self.ball.position.y - self.ball.size > HEIGHT {
+        if self.ball.position.y - self.ball.size < 0.0
+            || self.ball.position.y + self.ball.size > HEIGHT
+        {
             self.ball.angle = -self.ball.angle;
         }
 
@@ -169,7 +171,7 @@ fn main() {
             x: player1.position.x + player1.size * player1.ratio + 20.0,
             y: player1.position.y + player1.size / 2.0,
         },
-        angle: 0.0,
+        angle: PI / 2.0,
     };
 
     let mut app = App {
