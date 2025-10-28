@@ -115,7 +115,10 @@ impl App {
 fn main() {
     let opengl = OpenGL::V3_2;
 
-    let mut window: Window = WindowSettings::new("Pong", [800, 800])
+    const WIDTH: f64 = 800f64;
+    const HEIGHT: f64 = 800f64;
+
+    let mut window: Window = WindowSettings::new("Pong", [WIDTH, HEIGHT])
         .graphics_api(opengl)
         .exit_on_esc(true)
         .build()
@@ -124,18 +127,27 @@ fn main() {
     let player1 = Player {
         size: 80.0,
         ratio: 0.2,
-        position: Position { x: 50.0, y: 400.0 },
+        position: Position {
+            x: 50.0,
+            y: HEIGHT / 2.0,
+        },
     };
 
     let player2 = Player {
         size: 80.0,
         ratio: 0.2,
-        position: Position { x: 750.0, y: 400.0 },
+        position: Position {
+            x: WIDTH - 50.0,
+            y: HEIGHT / 2.0,
+        },
     };
 
     let ball = Ball {
         size: 20.0,
-        position: Position { x: 500.0, y: 400.0 },
+        position: Position {
+            x: player1.position.x + player1.size * player1.ratio + 20.0,
+            y: player1.position.y + player1.size / 2.0,
+        },
         angle: 0.0,
     };
 
