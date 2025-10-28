@@ -36,6 +36,7 @@ pub struct Player {
 pub struct Ball {
     size: f64,
     position: Position,
+    angle: f64,
 }
 
 impl App {
@@ -74,6 +75,7 @@ impl App {
     fn update(&mut self, _args: &UpdateArgs) {
         let speed = 5.0;
 
+        // TODO dont move out of screen
         for key in &self.pressed_keys {
             match key {
                 Key::W => self.player1.position.y -= speed,
@@ -83,6 +85,8 @@ impl App {
                 _ => {}
             }
         }
+
+        // TODO Ball movement
     }
 
     fn key_press(&mut self, key: Key) {
@@ -118,6 +122,7 @@ fn main() {
     let ball = Ball {
         size: 20.0,
         position: Position { x: 500.0, y: 400.0 },
+        angle: 0.0,
     };
 
     let mut app = App {
