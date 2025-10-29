@@ -35,13 +35,15 @@ pub struct Position {
 pub struct Player {
     size: f64,
     ratio: f64,
+    speed: f64,
     position: Position,
 }
 
 pub struct Ball {
     size: f64,
-    position: Position,
+    speed: f64,
     angle: f64,
+    position: Position,
 }
 
 impl Player {
@@ -101,15 +103,12 @@ impl App {
     }
 
     fn update(&mut self, _args: &UpdateArgs) {
-        let player_speed = 5.0;
-        let ball_speed = 3.0;
-
         for key in &self.pressed_keys {
             match key {
-                Key::W => self.player1.position.y -= player_speed,
-                Key::S => self.player1.position.y += player_speed,
-                Key::Up => self.player2.position.y -= player_speed,
-                Key::Down => self.player2.position.y += player_speed,
+                Key::W => self.player1.position.y -= self.player1.speed,
+                Key::S => self.player1.position.y += self.player1.speed,
+                Key::Up => self.player2.position.y -= self.player2.speed,
+                Key::Down => self.player2.position.y += self.player2.speed,
                 _ => {}
             }
             if !self.is_started {
@@ -122,21 +121,21 @@ impl App {
         }
 
         if self.player1.position.y < 0.0 {
-            self.player1.position.y += player_speed;
+            self.player1.position.y += self.player1.speed;
         }
         if self.player1.position.y > 800.0 - self.player1.size {
-            self.player1.position.y -= player_speed;
+            self.player1.position.y -= self.player1.speed;
         }
         if self.player2.position.y < 0.0 {
-            self.player2.position.y += player_speed;
+            self.player2.position.y += self.player2.speed;
         }
         if self.player2.position.y > 800.0 - self.player1.size {
-            self.player2.position.y -= player_speed;
+            self.player2.position.y -= self.player2.speed;
         }
 
         if self.is_started {
-            self.ball.position.x += self.ball.angle.cos() * ball_speed;
-            self.ball.position.y -= self.ball.angle.sin() * ball_speed;
+            self.ball.position.x += self.ball.angle.cos() * self.ball.speed;
+            self.ball.position.y -= self.ball.angle.sin() * self.ball.speed;
         }
 
         if self.ball.position.y - self.ball.size < 0.0
@@ -146,15 +145,18 @@ impl App {
         }
 
         if self.player1.collided(&self.ball) {
-            self.ball.angle = -(75.0 * PI / 180.0) * self.player1.collision_point(&self.ball);
+            let collision_point = self.player1.collision_point(&self.ball);
+            self.ball.angle = -(75.0 * PI / 180.0) * collision_point;
+            self.ball.speed = 3.0 + collision_point.abs() * 5.0;
         }
 
         if self.player2.collided(&self.ball) {
-            self.ball.angle = PI + (75.0 * PI / 180.0) * self.player2.collision_point(&self.ball);
+            let collision_point = self.player2.collision_point(&self.ball);
+            self.ball.angle = PI + (75.0 * PI / 180.0) * collision_point;
+            self.ball.speed = 3.0 + collision_point.abs() * 3.0;
         }
 
         // TODO Game logic
-        // - Collision with player
         // - Goal
         // - Winning
     }
@@ -179,6 +181,7 @@ fn main() {
 
     let player1 = Player {
         size: 80.0,
+        speed: 5.0,
         ratio: 0.2,
         position: Position {
             x: 50.0,
@@ -188,6 +191,7 @@ fn main() {
 
     let player2 = Player {
         size: 80.0,
+        speed: 5.0,
         ratio: 0.2,
         position: Position {
             x: WIDTH - 50.0,
@@ -197,6 +201,7 @@ fn main() {
 
     let ball = Ball {
         size: 10.0,
+        speed: 3.0,
         position: Position {
             x: player1.position.x + player1.size * player1.ratio + 20.0,
             y: player1.position.y + player1.size / 2.0,
