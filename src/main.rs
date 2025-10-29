@@ -4,7 +4,6 @@ extern crate opengl_graphics;
 extern crate piston;
 
 use glutin_window::GlutinWindow as Window;
-use piston::window::Window as WindowTrait;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::Button;
 use piston::Key;
@@ -12,6 +11,7 @@ use piston::PressEvent;
 use piston::ReleaseEvent;
 use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::window::Window as WindowTrait;
 use piston::window::WindowSettings;
 use std::collections::HashSet;
 use std::f64::consts::PI;
@@ -24,10 +24,12 @@ pub struct App {
     pressed_keys: HashSet<Key>,
     player1: Player,
     player2: Player,
+    kick_off: usize,
     ball: Ball,
     is_started: bool,
     game_over: bool,
-    winner: Option<&'static str>,
+    score: [u32; 2],
+    winner: usize,
 }
 
 pub struct Position {
@@ -36,14 +38,14 @@ pub struct Position {
 }
 
 pub struct Player {
-    size: f64,
-    ratio: f64,
+    height: f64,
+    width: f64,
     speed: f64,
     position: Position,
 }
 
 pub struct Ball {
-    size: f64,
+    radius: f64,
     speed: f64,
     angle: f64,
     position: Position,
@@ -52,13 +54,13 @@ pub struct Ball {
 impl Player {
     fn collided(&self, ball: &Ball) -> bool {
         let p_lx = self.position.x;
-        let p_rx = self.position.x + self.size * self.ratio;
+        let p_rx = self.position.x + self.width;
         let p_uy = self.position.y;
-        let p_dy = self.position.y + self.size;
-        let b_lx = ball.position.x - ball.size;
-        let b_rx = ball.position.x + ball.size;
-        let _b_uy = ball.position.y - ball.size;
-        let _b_dy = ball.position.y + ball.size;
+        let p_dy = self.position.y + self.height;
+        let b_lx = ball.position.x - ball.radius;
+        let b_rx = ball.position.x + ball.radius;
+        let _b_uy = ball.position.y - ball.radius;
+        let _b_dy = ball.position.y + ball.radius;
         let b_y = ball.position.y;
 
         (p_uy < b_y && b_y < p_dy) && (b_lx < p_rx && b_rx > p_lx)
@@ -66,7 +68,7 @@ impl Player {
 
     fn collision_point(&self, ball: &Ball) -> f64 {
         let b_dy = ball.position.y - self.position.y;
-        let b_ry = b_dy / self.size;
+        let b_ry = b_dy / self.height;
 
         b_ry * 2.0 - 1.0
     }
@@ -79,7 +81,7 @@ impl App {
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
         const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
-        let ball = ellipse::circle(0.0, 0.0, self.ball.size);
+        let ball = ellipse::circle(0.0, 0.0, self.ball.radius);
 
         self.gl.draw(args.viewport(), |c, gl| {
             clear(WHITE, gl);
@@ -97,7 +99,7 @@ impl App {
                 .trans(self.player2.position.x, self.player2.position.y);
 
             let from = [0.0, 0.0];
-            let to = [self.player1.size * self.player1.ratio, self.player1.size];
+            let to = [self.player1.width, self.player1.height];
 
             ellipse(BLACK, ball, ball_transform, gl);
             rectangle_from_to(BLACK, from, to, player1_transform, gl);
@@ -116,8 +118,26 @@ impl App {
             }
             if !self.is_started {
                 match key {
-                    Key::W => self.is_started = true,
-                    Key::S => self.is_started = true,
+                    Key::W => {
+                        if self.kick_off == 1 {
+                            self.is_started = true
+                        }
+                    }
+                    Key::S => {
+                        if self.kick_off == 1 {
+                            self.is_started = true
+                        }
+                    }
+                    Key::Up => {
+                        if self.kick_off == 2 {
+                            self.is_started = true
+                        }
+                    }
+                    Key::Down => {
+                        if self.kick_off == 2 {
+                            self.is_started = true
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -126,13 +146,13 @@ impl App {
         if self.player1.position.y < 0.0 {
             self.player1.position.y += self.player1.speed;
         }
-        if self.player1.position.y > 800.0 - self.player1.size {
+        if self.player1.position.y > 800.0 - self.player1.height {
             self.player1.position.y -= self.player1.speed;
         }
         if self.player2.position.y < 0.0 {
             self.player2.position.y += self.player2.speed;
         }
-        if self.player2.position.y > 800.0 - self.player1.size {
+        if self.player2.position.y > 800.0 - self.player1.height {
             self.player2.position.y -= self.player2.speed;
         }
 
@@ -141,8 +161,8 @@ impl App {
             self.ball.position.y -= self.ball.angle.sin() * self.ball.speed;
         }
 
-        if self.ball.position.y - self.ball.size < 0.0
-            || self.ball.position.y + self.ball.size > HEIGHT
+        if self.ball.position.y - self.ball.radius < 0.0
+            || self.ball.position.y + self.ball.radius > HEIGHT
         {
             self.ball.angle = -self.ball.angle;
         }
@@ -158,17 +178,47 @@ impl App {
             self.ball.angle = PI + (75.0 * PI / 180.0) * collision_point;
             self.ball.speed = 3.0 + collision_point.abs() * 3.0;
         }
-        
-        if self.ball.position.x > self.player2.position.x {
-            self.winner = Some("Spieler 1");
-            self.game_over = true;
-        }
+
         if self.ball.position.x < self.player1.position.x {
-            self.winner = Some("Spieler 2");
+            self.score[1] += 1;
+            self.is_started = false;
+            self.kick_off = 1;
+
+            self.ball.angle = 0.0;
+
+            self.ball.position.x = self.player1.position.x + self.player1.width + 20.0;
+            self.ball.position.y = HEIGHT / 2.0;
+
+            self.player1.position.y = HEIGHT / 2.0 - 40.0;
+            self.player2.position.y = HEIGHT / 2.0 - 40.0;
+        }
+
+        if self.ball.position.x > self.player2.position.x {
+            self.score[0] += 1;
+            self.is_started = false;
+            self.kick_off = 2;
+
+            self.ball.angle = PI;
+
+            self.ball.position.x =
+                self.player2.position.x + self.player2.width - self.player2.width - 20.0;
+            self.ball.position.y = HEIGHT / 2.0;
+
+            self.player1.position.y = HEIGHT / 2.0 - 40.0;
+            self.player2.position.y = HEIGHT / 2.0 - 40.0;
+        }
+
+        println!("{} to {}", self.score[0], self.score[1]);
+
+        if self.score[0] == 10 {
+            self.winner = 1;
+            self.game_over = true;
+        } else if self.score[1] == 10 {
+            self.winner = 2;
             self.game_over = true;
         }
+
         // TODO Game logic
-        // - Goal
         // - Winning
     }
 
@@ -178,6 +228,14 @@ impl App {
 
     fn key_release(&mut self, key: Key) {
         self.pressed_keys.remove(&key);
+    }
+
+    fn current_player(&self) -> &Player {
+        match self.kick_off {
+            1 => &self.player1,
+            2 => &self.player2,
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -191,31 +249,31 @@ fn main() {
         .unwrap();
 
     let player1 = Player {
-        size: 80.0,
+        height: 80.0,
+        width: 16.0,
         speed: 5.0,
-        ratio: 0.2,
         position: Position {
             x: 50.0,
-            y: HEIGHT / 2.0,
+            y: HEIGHT / 2.0 - 40.0,
         },
     };
 
     let player2 = Player {
-        size: 80.0,
+        height: 80.0,
+        width: 16.0,
         speed: 5.0,
-        ratio: 0.2,
         position: Position {
-            x: WIDTH - 50.0,
-            y: HEIGHT / 2.0,
+            x: WIDTH - 50.0 - 16.0,
+            y: HEIGHT / 2.0 - 40.0,
         },
     };
 
     let ball = Ball {
-        size: 10.0,
+        radius: 10.0,
         speed: 3.0,
         position: Position {
-            x: player1.position.x + player1.size * player1.ratio + 20.0,
-            y: player1.position.y + player1.size / 2.0,
+            x: player1.position.x + player1.width + 20.0,
+            y: HEIGHT / 2.0,
         },
         angle: 0.0, //radians
     };
@@ -225,10 +283,12 @@ fn main() {
         pressed_keys: HashSet::new(),
         player1,
         player2,
+        kick_off: 1,
         ball,
         is_started: false,
         game_over: false,
-        winner: None,
+        score: [0, 0],
+        winner: 0,
     };
 
     let mut events = Events::new(EventSettings::new());
@@ -241,9 +301,9 @@ fn main() {
         if let Some(args) = e.update_args() {
             app.update(&args);
             if app.game_over {
-                //Hier kann auch noch ein Endscreen gerendert werden 
-                print!("{:?}",app.winner);
-                WindowTrait::set_should_close(&mut window, true); 
+                //Hier kann auch noch ein Endscreen gerendert werden
+                print!("{:?}", app.winner);
+                WindowTrait::set_should_close(&mut window, true);
             }
         }
 
