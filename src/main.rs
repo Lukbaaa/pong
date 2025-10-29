@@ -196,6 +196,7 @@ impl App {
         if self.ball.position.x > self.player2.position.x {
             self.score[0] += 1;
             self.is_started = false;
+
             self.kick_off = 2;
 
             self.ball.angle = PI;
