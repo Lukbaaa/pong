@@ -59,8 +59,6 @@ impl Player {
         let p_dy = self.position.y + self.height;
         let b_lx = ball.position.x - ball.radius;
         let b_rx = ball.position.x + ball.radius;
-        let _b_uy = ball.position.y - ball.radius;
-        let _b_dy = ball.position.y + ball.radius;
         let b_y = ball.position.y;
 
         (p_uy < b_y && b_y < p_dy) && (b_lx < p_rx && b_rx > p_lx)
@@ -119,30 +117,13 @@ impl App {
                 Key::Down => self.player2.position.y += self.player2.speed,
                 _ => {}
             }
-            if !self.is_started {
-                match key {
-                    Key::W => {
-                        if self.kick_off == 1 {
-                            self.is_started = true
-                        }
-                    }
-                    Key::S => {
-                        if self.kick_off == 1 {
-                            self.is_started = true
-                        }
-                    }
-                    Key::Up => {
-                        if self.kick_off == 2 {
-                            self.is_started = true
-                        }
-                    }
-                    Key::Down => {
-                        if self.kick_off == 2 {
-                            self.is_started = true
-                        }
-                    }
-                    _ => {}
-                }
+            let player_num = match key {
+                Key::W | Key::S => 1,
+                Key::Up | Key::Down => 2,
+                _ => 0,
+            };
+            if player_num == self.kick_off {
+                self.is_started = true;
             }
         }
 
@@ -183,33 +164,10 @@ impl App {
         }
 
         if self.ball.position.x < self.player1.position.x {
-            self.score[1] += 1;
-            self.is_started = false;
-            self.kick_off = 1;
-
-            self.ball.angle = 0.0;
-
-            self.ball.position.x = self.player1.position.x + self.player1.width + 20.0;
-            self.ball.position.y = HEIGHT / 2.0;
-
-            self.player1.position.y = HEIGHT / 2.0 - 40.0;
-            self.player2.position.y = HEIGHT / 2.0 - 40.0;
+            self.scored(1);
         }
-
         if self.ball.position.x > self.player2.position.x {
-            self.score[0] += 1;
-            self.is_started = false;
-
-            self.kick_off = 2;
-
-            self.ball.angle = PI;
-
-            self.ball.position.x =
-                self.player2.position.x - 20.0;
-            self.ball.position.y = HEIGHT / 2.0;
-
-            self.player1.position.y = HEIGHT / 2.0 - 40.0;
-            self.player2.position.y = HEIGHT / 2.0 - 40.0;
+            self.scored(0);
         }
 
         if self.score[0] == 10 {
@@ -235,6 +193,25 @@ impl App {
             2 => &self.player2,
             _ => unreachable!(),
         }
+    }
+
+    fn scored(&mut self, scoring_player: usize) {
+        self.score[scoring_player] += 1;
+        self.is_started = false;
+        self.kick_off = 3 - scoring_player;
+        
+        let (ball_x, angle) = if self.kick_off == 1 {
+            (self.player1.position.x + self.player1.width + 20.0, 0.0)
+        } else {
+            (self.player2.position.x - 20.0, PI)
+        };
+        
+        self.ball.position.x = ball_x;
+        self.ball.position.y = HEIGHT / 2.0;
+        self.ball.angle = angle;
+        
+        self.player1.position.y = HEIGHT / 2.0 - 40.0;
+        self.player2.position.y = HEIGHT / 2.0 - 40.0;
     }
 }
 
