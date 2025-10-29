@@ -149,13 +149,13 @@ impl App {
         if self.player1.position.y < 0.0 {
             self.player1.position.y += self.player1.speed;
         }
-        if self.player1.position.y > 800.0 - self.player1.height {
+        if self.player1.position.y > HEIGHT - self.player1.height {
             self.player1.position.y -= self.player1.speed;
         }
         if self.player2.position.y < 0.0 {
             self.player2.position.y += self.player2.speed;
         }
-        if self.player2.position.y > 800.0 - self.player1.height {
+        if self.player2.position.y > HEIGHT - self.player2.height {
             self.player2.position.y -= self.player2.speed;
         }
 
@@ -173,7 +173,7 @@ impl App {
         if self.player1.collided(&self.ball) {
             let collision_point = self.player1.collision_point(&self.ball);
             self.ball.angle = -(75.0 * PI / 180.0) * collision_point;
-            self.ball.speed = 3.0 + collision_point.abs() * 5.0;
+            self.ball.speed = 3.0 + collision_point.abs() * 3.0;
         }
 
         if self.player2.collided(&self.ball) {
@@ -205,7 +205,7 @@ impl App {
             self.ball.angle = PI;
 
             self.ball.position.x =
-                self.player2.position.x + self.player2.width - self.player2.width - 20.0;
+                self.player2.position.x - 20.0;
             self.ball.position.y = HEIGHT / 2.0;
 
             self.player1.position.y = HEIGHT / 2.0 - 40.0;
