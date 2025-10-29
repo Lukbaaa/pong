@@ -4,6 +4,7 @@ extern crate opengl_graphics;
 extern crate piston;
 
 use glutin_window::GlutinWindow as Window;
+use piston::window::Window as WindowTrait;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::Button;
 use piston::Key;
@@ -25,6 +26,8 @@ pub struct App {
     player2: Player,
     ball: Ball,
     is_started: bool,
+    game_over: bool,
+    winner: Option<&'static str>,
 }
 
 pub struct Position {
@@ -152,7 +155,15 @@ impl App {
         if self.player2.collided(&self.ball) {
             self.ball.angle = PI + (75.0 * PI / 180.0) * self.player2.collision_point(&self.ball);
         }
-
+        
+        if self.ball.position.x > self.player2.position.x {
+            self.winner = Some("Spieler 1");
+            self.game_over = true;
+        }
+        if self.ball.position.x < self.player1.position.x {
+            self.winner = Some("Spieler 2");
+            self.game_over = true;
+        }
         // TODO Game logic
         // - Collision with player
         // - Goal
@@ -211,6 +222,8 @@ fn main() {
         player2,
         ball,
         is_started: false,
+        game_over: false,
+        winner: None,
     };
 
     let mut events = Events::new(EventSettings::new());
@@ -222,6 +235,11 @@ fn main() {
 
         if let Some(args) = e.update_args() {
             app.update(&args);
+            if app.game_over {
+                //Hier kann auch noch ein Endscreen gerendert werden 
+                print!("{:?}",app.winner);
+                WindowTrait::set_should_close(&mut window, true); 
+            }
         }
 
         if let Some(Button::Keyboard(key)) = e.press_args() {
