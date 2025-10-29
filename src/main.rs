@@ -89,7 +89,6 @@ impl App {
             let ball_transform = c
                 .transform
                 .trans(self.ball.position.x, self.ball.position.y);
-
             let player1_transform = c
                 .transform
                 .trans(self.player1.position.x, self.player1.position.y);
@@ -104,6 +103,10 @@ impl App {
             ellipse(BLACK, ball, ball_transform, gl);
             rectangle_from_to(BLACK, from, to, player1_transform, gl);
             rectangle_from_to(BLACK, from, to, player2_transform, gl);
+
+            //TODO
+            //- render score
+            //- render winning screen
         });
     }
 
@@ -209,8 +212,6 @@ impl App {
             self.player2.position.y = HEIGHT / 2.0 - 40.0;
         }
 
-        println!("{} to {}", self.score[0], self.score[1]);
-
         if self.score[0] == 10 {
             self.winner = 1;
             self.game_over = true;
@@ -218,9 +219,6 @@ impl App {
             self.winner = 2;
             self.game_over = true;
         }
-
-        // TODO Game logic
-        // - Winning
     }
 
     fn key_press(&mut self, key: Key) {
@@ -301,8 +299,8 @@ fn main() {
 
         if let Some(args) = e.update_args() {
             app.update(&args);
+
             if app.game_over {
-                //Hier kann auch noch ein Endscreen gerendert werden
                 print!("{:?}", app.winner);
                 WindowTrait::set_should_close(&mut window, true);
             }
