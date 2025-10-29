@@ -44,6 +44,29 @@ pub struct Ball {
     angle: f64,
 }
 
+impl Player {
+    fn collided(&self, ball: &Ball) -> bool {
+        let p_lx = self.position.x;
+        let p_rx = self.position.x + self.size * self.ratio;
+        let p_uy = self.position.y;
+        let p_dy = self.position.y + self.size;
+        let b_lx = ball.position.x - ball.size;
+        let b_rx = ball.position.x + ball.size;
+        let _b_uy = ball.position.y - ball.size;
+        let _b_dy = ball.position.y + ball.size;
+        let b_y = ball.position.y;
+
+        (p_uy < b_y && b_y < p_dy) && (b_lx < p_rx && b_rx > p_lx)
+    }
+
+    fn collision_point(&self, ball: &Ball) -> f64 {
+        let b_dy = ball.position.y - self.position.y;
+        let b_ry = b_dy / self.size;
+
+        b_ry * 2.0 - 1.0
+    }
+}
+
 impl App {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
@@ -79,7 +102,7 @@ impl App {
 
     fn update(&mut self, _args: &UpdateArgs) {
         let player_speed = 5.0;
-        let ball_speed = 2.0;
+        let ball_speed = 3.0;
 
         for key in &self.pressed_keys {
             match key {
@@ -122,8 +145,15 @@ impl App {
             self.ball.angle = -self.ball.angle;
         }
 
+        if self.player1.collided(&self.ball) {
+            self.ball.angle = -(75.0 * PI / 180.0) * self.player1.collision_point(&self.ball);
+        }
+
+        if self.player2.collided(&self.ball) {
+            self.ball.angle = PI + (75.0 * PI / 180.0) * self.player2.collision_point(&self.ball);
+        }
+
         // TODO Game logic
-        // - Collision with walls
         // - Collision with player
         // - Goal
         // - Winning
@@ -166,12 +196,12 @@ fn main() {
     };
 
     let ball = Ball {
-        size: 20.0,
+        size: 10.0,
         position: Position {
             x: player1.position.x + player1.size * player1.ratio + 20.0,
             y: player1.position.y + player1.size / 2.0,
         },
-        angle: PI / 2.0,
+        angle: 0.0, //radians
     };
 
     let mut app = App {
