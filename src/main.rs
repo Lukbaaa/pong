@@ -164,10 +164,10 @@ impl App {
         }
 
         if self.ball.position.x < self.player1.position.x {
-            self.scored(1);
+            self.scored(2);
         }
         if self.ball.position.x > self.player2.position.x {
-            self.scored(0);
+            self.scored(1);
         }
 
         if self.score[0] == 10 {
@@ -196,20 +196,20 @@ impl App {
     }
 
     fn scored(&mut self, scoring_player: usize) {
-        self.score[scoring_player] += 1;
+        self.score[scoring_player - 1] += 1;
         self.is_started = false;
         self.kick_off = 3 - scoring_player;
-        
+
         let (ball_x, angle) = if self.kick_off == 1 {
             (self.player1.position.x + self.player1.width + 20.0, 0.0)
         } else {
             (self.player2.position.x - 20.0, PI)
         };
-        
+
         self.ball.position.x = ball_x;
         self.ball.position.y = HEIGHT / 2.0;
         self.ball.angle = angle;
-        
+
         self.player1.position.y = HEIGHT / 2.0 - 40.0;
         self.player2.position.y = HEIGHT / 2.0 - 40.0;
     }
