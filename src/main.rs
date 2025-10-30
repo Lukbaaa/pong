@@ -187,14 +187,6 @@ impl App {
         self.pressed_keys.remove(&key);
     }
 
-    fn current_player(&self) -> &Player {
-        match self.kick_off {
-            1 => &self.player1,
-            2 => &self.player2,
-            _ => unreachable!(),
-        }
-    }
-
     fn scored(&mut self, scoring_player: usize) {
         self.score[scoring_player - 1] += 1;
         self.is_started = false;
