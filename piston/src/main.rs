@@ -1,8 +1,3 @@
-extern crate glutin_window;
-extern crate graphics;
-extern crate opengl_graphics;
-extern crate piston;
-
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::Button;
@@ -18,6 +13,42 @@ use std::f64::consts::PI;
 
 const WIDTH: f64 = 800f64;
 const HEIGHT: f64 = 800f64;
+
+pub trait PowerUp {
+    const SIZE: f64 = 32.0;
+
+    fn position(&self) -> &Position;
+    fn width(&self) -> f64 {
+        Self::SIZE
+    }
+    fn height(&self) -> f64 {
+        Self::SIZE
+    }
+
+    fn collided(&self, ball: &Ball) -> bool {
+        let p = self.position();
+        let p_lx = p.x;
+        let p_rx = p.x + self.width();
+        let p_uy = p.y;
+        let p_dy = p.y + self.height();
+
+        let b_lx = ball.position.x - ball.radius;
+        let b_rx = ball.position.x + ball.radius;
+        let b_y = ball.position.y;
+
+        (p_uy < b_y && b_y < p_dy) && (b_lx < p_rx && b_rx > p_lx)
+    }
+}
+
+pub struct Extend {
+    position: Position,
+}
+
+impl PowerUp for Extend {
+    fn position(&self) -> &Position {
+        &self.position
+    }
+}
 
 pub struct App {
     gl: GlGraphics,
@@ -209,7 +240,6 @@ impl App {
 
 fn main() {
     let opengl = OpenGL::V3_2;
-
     let mut window: Window = WindowSettings::new("Pong", [WIDTH, HEIGHT])
         .graphics_api(opengl)
         .exit_on_esc(true)
