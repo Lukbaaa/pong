@@ -1,4 +1,5 @@
 use glutin_window::GlutinWindow as Window;
+use opengl_graphics::Texture as GlTexture;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::Button;
 use piston::Key;
@@ -8,29 +9,68 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::Window as WindowTrait;
 use piston::window::WindowSettings;
+use piston_window::{DrawState, Filter, Image, TextureSettings};
+use rand::Rng;
+use rand::seq::IndexedRandom;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::f64::consts::PI;
+use std::path::Path;
+
+mod number_renderer;
+use number_renderer::NumberRenderer;
 
 const WIDTH: f64 = 800f64;
 const HEIGHT: f64 = 800f64;
+const POWERUP_SIZE: f64 = 32.0;
+const SPRITE_SPAWN_MARGIN: f64 = 150.0;
 
-pub trait PowerUp {
-    const SIZE: f64 = 32.0;
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+pub enum PowerUpType {
+    Enlarge,
+    Shrink,
+    SpeedUp,
+    SlowDown,
+}
 
-    fn position(&self) -> &Position;
-    fn width(&self) -> f64 {
-        Self::SIZE
+pub struct PowerUp {
+    position: Position,
+    powerup_type: PowerUpType,
+    collectable: bool,
+    time_left: f64,
+}
+
+impl PowerUp {
+    pub fn new(x: f64, y: f64, powerup_type: PowerUpType) -> Self {
+        PowerUp {
+            position: Position { x, y },
+            powerup_type,
+            collectable: true,
+            time_left: 5.0,
+        }
     }
-    fn height(&self) -> f64 {
-        Self::SIZE
+
+    pub fn position(&self) -> &Position {
+        &self.position
     }
 
-    fn collided(&self, ball: &Ball) -> bool {
-        let p = self.position();
-        let p_lx = p.x;
-        let p_rx = p.x + self.width();
-        let p_uy = p.y;
-        let p_dy = p.y + self.height();
+    pub fn powerup_type(&self) -> PowerUpType {
+        self.powerup_type
+    }
+
+    pub fn width(&self) -> f64 {
+        POWERUP_SIZE
+    }
+
+    pub fn height(&self) -> f64 {
+        POWERUP_SIZE
+    }
+
+    pub fn collided(&self, ball: &Ball) -> bool {
+        let p_lx = self.position.x;
+        let p_rx = self.position.x + self.width();
+        let p_uy = self.position.y;
+        let p_dy = self.position.y + self.height();
 
         let b_lx = ball.position.x - ball.radius;
         let b_rx = ball.position.x + ball.radius;
@@ -38,29 +78,74 @@ pub trait PowerUp {
 
         (p_uy < b_y && b_y < p_dy) && (b_lx < p_rx && b_rx > p_lx)
     }
+
+    pub fn collect(&mut self, app: &App) {
+        self.collectable = false;
+    }
 }
 
-pub struct Extend {
-    position: Position,
+pub struct PowerUpSprites {
+    sprites: HashMap<PowerUpType, GlTexture>,
 }
 
-impl PowerUp for Extend {
-    fn position(&self) -> &Position {
-        &self.position
+impl Default for PowerUpSprites {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PowerUpSprites {
+    pub fn new() -> Self {
+        let texture_settings = TextureSettings::new()
+            .filter(Filter::Nearest)
+            .mipmap(Filter::Nearest);
+
+        let mut sprites = HashMap::new();
+
+        if let Ok(texture) =
+            GlTexture::from_path(Path::new("assets/enlarge.png"), &texture_settings)
+        {
+            sprites.insert(PowerUpType::Enlarge, texture);
+        }
+        // sprites.insert(PowerUpType::Shrink, GlTexture::from_path(...));
+        // sprites.insert(PowerUpType::SpeedUp, GlTexture::from_path(...));
+        // sprites.insert(PowerUpType::SlowDown, GlTexture::from_path(...));
+
+        PowerUpSprites { sprites }
+    }
+
+    pub fn get(&self, powerup_type: &PowerUpType) -> Option<&GlTexture> {
+        self.sprites.get(powerup_type)
+    }
+
+    pub fn render(&self, powerup: &PowerUp, c: &graphics::Context, gl: &mut GlGraphics) {
+        if let Some(sprite) = self.get(&powerup.powerup_type()) {
+            Image::new()
+                .rect([
+                    powerup.position().x,
+                    powerup.position().y,
+                    powerup.width(),
+                    powerup.height(),
+                ])
+                .draw(sprite, &DrawState::default(), c.transform, gl);
+        }
     }
 }
 
 pub struct App {
     gl: GlGraphics,
+    number_renderer: NumberRenderer,
+    powerup_sprites: PowerUpSprites,
+    active_powerups: Vec<PowerUp>,
     pressed_keys: HashSet<Key>,
     player1: Player,
     player2: Player,
     kick_off: usize,
     ball: Ball,
-    is_started: bool,
     game_over: bool,
     score: [u32; 2],
     winner: usize,
+    time_to_spawn_power_up: f64,
 }
 
 pub struct Position {
@@ -80,6 +165,7 @@ pub struct Ball {
     speed: f64,
     angle: f64,
     position: Position,
+    last_hit: usize,
 }
 
 impl Player {
@@ -100,6 +186,23 @@ impl Player {
         let b_ry = b_dy / self.height;
 
         b_ry * 2.0 - 1.0
+    }
+
+    fn prevent_out_of_bounds(&mut self) {
+        if self.position.y < 0.0 {
+            self.position.y += self.speed;
+        }
+        if self.position.y > HEIGHT - self.height {
+            self.position.y -= self.speed;
+        }
+    }
+}
+
+impl Ball {
+    fn check_and_handle_vertical_collision(&mut self) {
+        if self.position.y - self.radius < 0.0 || self.position.y + self.radius > HEIGHT {
+            self.angle = -self.angle;
+        }
     }
 }
 
@@ -133,13 +236,35 @@ impl App {
             rectangle_from_to(BLACK, from, to, player1_transform, gl);
             rectangle_from_to(BLACK, from, to, player2_transform, gl);
 
-            //TODO
-            //- render score
-            //- render winning screen
+            self.number_renderer.render(
+                self.score[0],
+                WIDTH / 4.0,
+                50.0,
+                100.0,
+                [0.0, 0.0, 0.0],
+                &c,
+                gl,
+            );
+
+            self.number_renderer.render(
+                self.score[1],
+                3.0 * WIDTH / 4.0,
+                50.0,
+                100.0,
+                [0.0, 0.0, 0.0],
+                &c,
+                gl,
+            );
+
+            for powerup in &self.active_powerups {
+                if powerup.collectable {
+                    self.powerup_sprites.render(powerup, &c, gl);
+                }
+            }
         });
     }
 
-    fn update(&mut self, _args: &UpdateArgs) {
+    fn update(&mut self, args: &UpdateArgs) {
         for key in &self.pressed_keys {
             match key {
                 Key::W => self.player1.position.y -= self.player1.speed,
@@ -154,44 +279,30 @@ impl App {
                 _ => 0,
             };
             if player_num == self.kick_off {
-                self.is_started = true;
+                self.ball.speed = 3.0;
             }
         }
 
-        if self.player1.position.y < 0.0 {
-            self.player1.position.y += self.player1.speed;
-        }
-        if self.player1.position.y > HEIGHT - self.player1.height {
-            self.player1.position.y -= self.player1.speed;
-        }
-        if self.player2.position.y < 0.0 {
-            self.player2.position.y += self.player2.speed;
-        }
-        if self.player2.position.y > HEIGHT - self.player2.height {
-            self.player2.position.y -= self.player2.speed;
-        }
+        self.player1.prevent_out_of_bounds();
+        self.player2.prevent_out_of_bounds();
 
-        if self.is_started {
-            self.ball.position.x += self.ball.angle.cos() * self.ball.speed;
-            self.ball.position.y -= self.ball.angle.sin() * self.ball.speed;
-        }
+        self.ball.position.x += self.ball.angle.cos() * self.ball.speed;
+        self.ball.position.y -= self.ball.angle.sin() * self.ball.speed;
 
-        if self.ball.position.y - self.ball.radius < 0.0
-            || self.ball.position.y + self.ball.radius > HEIGHT
-        {
-            self.ball.angle = -self.ball.angle;
-        }
+        self.ball.check_and_handle_vertical_collision();
 
         if self.player1.collided(&self.ball) {
             let collision_point = self.player1.collision_point(&self.ball);
             self.ball.angle = -(75.0 * PI / 180.0) * collision_point;
             self.ball.speed = 3.0 + collision_point.abs() * 3.0;
+            self.ball.last_hit = 1;
         }
 
         if self.player2.collided(&self.ball) {
             let collision_point = self.player2.collision_point(&self.ball);
             self.ball.angle = PI + (75.0 * PI / 180.0) * collision_point;
             self.ball.speed = 3.0 + collision_point.abs() * 3.0;
+            self.ball.last_hit = 2;
         }
 
         if self.ball.position.x < self.player1.position.x {
@@ -208,6 +319,18 @@ impl App {
             self.winner = 2;
             self.game_over = true;
         }
+
+        self.time_to_spawn_power_up -= args.dt;
+        if self.time_to_spawn_power_up <= 0.0 {
+            self.spawn_power_up();
+            self.time_to_spawn_power_up = 10.0;
+        }
+
+        for powerup in &self.active_powerups {
+            if powerup.collided(&self.ball) {
+                powerup.collect(self);
+            }
+        }
     }
 
     fn key_press(&mut self, key: Key) {
@@ -219,8 +342,8 @@ impl App {
     }
 
     fn scored(&mut self, scoring_player: usize) {
+        self.ball.speed = 0.0;
         self.score[scoring_player - 1] += 1;
-        self.is_started = false;
         self.kick_off = 3 - scoring_player;
 
         let (ball_x, angle) = if self.kick_off == 1 {
@@ -235,6 +358,25 @@ impl App {
 
         self.player1.position.y = HEIGHT / 2.0 - 40.0;
         self.player2.position.y = HEIGHT / 2.0 - 40.0;
+    }
+
+    fn spawn_power_up(&mut self) {
+        let mut rng = rand::rng();
+        let types = [
+            PowerUpType::Enlarge,
+            PowerUpType::Shrink,
+            PowerUpType::SpeedUp,
+            PowerUpType::SlowDown,
+        ];
+
+        let rnd_type = types.choose(&mut rng).unwrap();
+
+        let spawn_x = rng.random_range(SPRITE_SPAWN_MARGIN..WIDTH - SPRITE_SPAWN_MARGIN);
+        let spawn_y = rng.random_range(50.0..HEIGHT - 50.0);
+
+        let powerup = PowerUp::new(spawn_x, spawn_y, PowerUpType::Enlarge);
+
+        self.active_powerups.push(powerup);
     }
 }
 
@@ -274,19 +416,23 @@ fn main() {
             y: HEIGHT / 2.0,
         },
         angle: 0.0, //radians
+        last_hit: 1,
     };
 
     let mut app = App {
         gl: GlGraphics::new(opengl),
+        number_renderer: NumberRenderer::new(),
+        powerup_sprites: PowerUpSprites::new(),
+        active_powerups: Vec::new(),
         pressed_keys: HashSet::new(),
         player1,
         player2,
         kick_off: 1,
         ball,
-        is_started: false,
         game_over: false,
         score: [0, 0],
         winner: 0,
+        time_to_spawn_power_up: 10.0,
     };
 
     let mut events = Events::new(EventSettings::new());
