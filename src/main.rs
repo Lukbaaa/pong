@@ -201,8 +201,10 @@ impl App {
         self.score[scoring_player - 1] += 1;
         self.kick_off = 3 - scoring_player;
 
-        self.player1.reset();
-        self.player2.reset();
+        println!("{}", self.score[0]);
+
+        self.player1.reset(1);
+        self.player2.reset(2);
 
         let (ball_x, angle) = if self.kick_off == 1 {
             (self.player1.position.x + self.player1.width + 20.0, 0.0)

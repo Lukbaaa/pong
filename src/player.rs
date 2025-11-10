@@ -1,6 +1,7 @@
 use crate::Ball;
 use crate::Position;
 use crate::constants::HEIGHT;
+use crate::constants::WIDTH;
 use crate::object::Object;
 
 pub struct Player {
@@ -39,12 +40,20 @@ impl Player {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.height = 80.0;
-        self.width = 16.0;
-        self.speed = 5.0;
-        self.position.x = 50.0;
-        self.position.y = HEIGHT / 2.0 - self.height / 2.0;
+    pub fn reset(&mut self, player: usize) {
+        if player == 1 {
+            self.height = 80.0;
+            self.width = 16.0;
+            self.speed = 5.0;
+            self.position.x = 50.0;
+            self.position.y = HEIGHT / 2.0 - 40.0;
+        } else {
+            self.height = 80.0;
+            self.width = 16.0;
+            self.speed = 5.0;
+            self.position.x = WIDTH - 50.0 - 16.0;
+            self.position.y = HEIGHT / 2.0 - 40.0;
+        }
     }
 }
 

@@ -161,7 +161,7 @@ impl PowerUp for SpeedUp {
     }
 
     fn powerup_type(&self) -> PowerUpType {
-        PowerUpType::Shrink
+        PowerUpType::SpeedUp
     }
 
     fn collect(&mut self, last_hit: usize, player1: &mut dyn Object, player2: &mut dyn Object) {
@@ -202,7 +202,7 @@ impl PowerUp for SlowDown {
     }
 
     fn powerup_type(&self) -> PowerUpType {
-        PowerUpType::Shrink
+        PowerUpType::SpeedUp
     }
 
     fn collect(&mut self, last_hit: usize, player1: &mut dyn Object, player2: &mut dyn Object) {
