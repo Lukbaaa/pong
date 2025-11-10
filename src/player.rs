@@ -38,11 +38,23 @@ impl Player {
             self.position.y -= self.speed;
         }
     }
+
+    pub fn reset(&mut self) {
+        self.height = 80.0;
+        self.width = 16.0;
+        self.speed = 5.0;
+        self.position.x = 50.0;
+        self.position.y = HEIGHT / 2.0 - self.height / 2.0;
+    }
 }
 
 impl Object for Player {
     fn resize_by(&mut self, size: f64) {
         self.height += size;
         self.position.y -= size / 2.0;
+    }
+
+    fn change_speed_by(&mut self, speed: f64) {
+        self.speed -= speed;
     }
 }

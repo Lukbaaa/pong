@@ -37,7 +37,7 @@ pub struct App {
     gl: GlGraphics,
     number_renderer: NumberRenderer,
     powerup_sprites: PowerUpSprites,
-    active_powerups: Vec<PowerUp>,
+    active_powerups: Vec<Box<dyn PowerUp>>,
     pressed_keys: HashSet<Key>,
     player1: Player,
     player2: Player,
@@ -101,8 +101,8 @@ impl App {
             );
 
             for powerup in &self.active_powerups {
-                if powerup.collectable {
-                    self.powerup_sprites.render(powerup, &c, gl);
+                if powerup.collectable() {
+                    self.powerup_sprites.render(powerup.as_ref(), &c, gl);
                 }
             }
         });
@@ -173,17 +173,17 @@ impl App {
         let mut collected_indices = Vec::new();
 
         for (i, powerup) in self.active_powerups.iter().enumerate() {
-            if powerup.collectable && powerup.collided(&self.ball) {
+            if powerup.collectable() && powerup.collided(&self.ball) {
                 collected_indices.push(i);
             }
         }
 
         for i in collected_indices.into_iter().rev() {
-            if self.ball.last_hit == 1 {
-                self.active_powerups[i].collect(&mut self.player1);
-            } else {
-                self.active_powerups[i].collect(&mut self.player2);
-            }
+            self.active_powerups[i].collect(
+                self.ball.last_hit,
+                &mut self.player1,
+                &mut self.player2,
+            );
             self.active_powerups.remove(i);
         }
     }
@@ -201,6 +201,9 @@ impl App {
         self.score[scoring_player - 1] += 1;
         self.kick_off = 3 - scoring_player;
 
+        self.player1.reset();
+        self.player2.reset();
+
         let (ball_x, angle) = if self.kick_off == 1 {
             (self.player1.position.x + self.player1.width + 20.0, 0.0)
         } else {
@@ -211,8 +214,7 @@ impl App {
         self.ball.position.y = HEIGHT / 2.0;
         self.ball.angle = angle;
 
-        self.player1.position.y = HEIGHT / 2.0 - 40.0;
-        self.player2.position.y = HEIGHT / 2.0 - 40.0;
+        self.active_powerups.clear();
     }
 
     fn spawn_power_up(&mut self) {
@@ -224,14 +226,25 @@ impl App {
             PowerUpType::SlowDown,
         ];
 
-        let _rnd_type = types.choose(&mut rng).unwrap();
+        let rnd_type = types.choose(&mut rng).unwrap();
 
         let spawn_x = rng.random_range(SPRITE_SPAWN_MARGIN..WIDTH - SPRITE_SPAWN_MARGIN);
         let spawn_y = rng.random_range(50.0..HEIGHT - 50.0);
 
-        let powerup = PowerUp::new(spawn_x, spawn_y, PowerUpType::Enlarge);
-
-        self.active_powerups.push(powerup);
+        match rnd_type {
+            PowerUpType::Enlarge => self
+                .active_powerups
+                .push(Box::new(Enlarge::new(spawn_x, spawn_y))),
+            PowerUpType::Shrink => self
+                .active_powerups
+                .push(Box::new(Shrink::new(spawn_x, spawn_y))),
+            PowerUpType::SpeedUp => self
+                .active_powerups
+                .push(Box::new(SpeedUp::new(spawn_x, spawn_y))),
+            PowerUpType::SlowDown => self
+                .active_powerups
+                .push(Box::new(SlowDown::new(spawn_x, spawn_y))),
+        }
     }
 }
 

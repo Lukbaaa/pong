@@ -22,4 +22,8 @@ impl Object for Ball {
     fn resize_by(&mut self, size: f64) {
         self.radius += size;
     }
+
+    fn change_speed_by(&mut self, speed: f64) {
+        self.speed += speed;
+    }
 }
